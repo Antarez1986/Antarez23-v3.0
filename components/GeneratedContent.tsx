@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import type { GeneratedContent, ExtraActivity, VerdaderoFalsoItem, CompletarFraseItem, SopaDeLetrasContent, OrdenaFraseItem } from '../types';
+import type { GeneratedContent, ExtraActivity, VerdaderoFalsoItem, CompletarFraseItem, SopaDeLetrasContent, OrdenaFraseItem, WordSolution } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 
 interface GeneratedContentProps {
@@ -8,6 +7,82 @@ interface GeneratedContentProps {
   studentName: string;
   onReset: () => void;
 }
+
+// --- HELPERS FOR WORD SEARCH VERIFICATION ---
+
+/**
+ * Extracts a word from the grid based on start/end coordinates.
+ */
+const extractWordFromGrid = (grid: string[][], sol: WordSolution): string => {
+    const { word, startRow, startCol, endRow, endCol } = sol;
+    if (!grid || grid.length === 0 || !word) return "";
+
+    const dRow = Math.sign(endRow - startRow);
+    const dCol = Math.sign(endCol - startCol);
+    
+    let extracted = '';
+    let r = startRow;
+    let c = startCol;
+
+    for (let i = 0; i < word.length; i++) {
+        if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) {
+            return ""; // Out of bounds
+        }
+        extracted += grid[r][c];
+        
+        if (r === endRow && c === endCol && i < word.length - 1) {
+             break;
+        }
+
+        r += dRow;
+        c += dCol;
+    }
+    return extracted;
+};
+
+/**
+ * Searches the entire grid to find the correct coordinates for a given word.
+ */
+const findWordInGrid = (grid: string[][], word: string): WordSolution | null => {
+    if (!word || !grid || grid.length === 0) return null;
+    
+    const wordUpper = word.toUpperCase();
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const len = wordUpper.length;
+
+    const directions = [
+        { dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 0, dc: -1 }, { dr: -1, dc: 0 },
+        { dr: 1, dc: 1 }, { dr: 1, dc: -1 }, { dr: -1, dc: 1 }, { dr: -1, dc: -1 },
+    ];
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (grid[r][c] === wordUpper[0]) {
+                for (const { dr, dc } of directions) {
+                    const endRow = r + dr * (len - 1);
+                    const endCol = c + dc * (len - 1);
+
+                    if (endRow >= 0 && endRow < rows && endCol >= 0 && endCol < cols) {
+                        let found = true;
+                        for (let i = 1; i < len; i++) {
+                            if (grid[r + dr * i][c + dc * i] !== wordUpper[i]) {
+                                found = false;
+                                break;
+                            }
+                        }
+                        if (found) {
+                            return { word, startRow: r, startCol: c, endRow, endCol };
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+};
+
 
 // Interactive Component for "Verdadero o Falso"
 const VerdaderoFalsoActivity: React.FC<{ content: VerdaderoFalsoItem[] }> = ({ content }) => {
@@ -415,7 +490,43 @@ const GeneratedContentDisplay: React.FC<GeneratedContentProps> = ({ content, stu
                         y += 3;
 
                         if (activity.sopaDeLetras) {
-                            const { grid, words, solution } = activity.sopaDeLetras;
+                            const { grid, words, solution: originalSolution } = activity.sopaDeLetras;
+
+                            // --- VERIFICATION AND CORRECTION LOGIC (REVISED) ---
+                            const verifiedSolution: WordSolution[] = [];
+                            if (grid && words) {
+                                // For each word that is supposed to be in the grid...
+                                for (const wordToFind of words) {
+                                    let found = false;
+
+                                    // 1. Check if the model's provided solution for this word is correct.
+                                    if (originalSolution) {
+                                        const modelSol = originalSolution.find(s => s.word.toLowerCase() === wordToFind.toLowerCase());
+                                        if (modelSol) {
+                                            const extracted = extractWordFromGrid(grid, { ...modelSol, word: wordToFind });
+                                            if (extracted === wordToFind.toUpperCase() || extracted.split('').reverse().join('') === wordToFind.toUpperCase()) {
+                                                // The model's solution is correct for this word.
+                                                verifiedSolution.push({ ...modelSol, word: wordToFind });
+                                                found = true;
+                                            }
+                                        }
+                                    }
+
+                                    // 2. If the model's solution was missing or incorrect, search manually.
+                                    if (!found) {
+                                        console.warn(`Model solution for "${wordToFind}" was incorrect or missing. Searching manually.`);
+                                        const manualSol = findWordInGrid(grid, wordToFind);
+                                        if (manualSol) {
+                                            verifiedSolution.push(manualSol);
+                                        } else {
+                                            // This is a critical failure, the word is simply not in the grid.
+                                            console.error(`CRITICAL: Could not find the word "${wordToFind}" anywhere in the grid.`);
+                                        }
+                                    }
+                                }
+                            }
+                            // --- END VERIFICATION ---
+                            
                             if (grid && grid.length > 0 && grid[0].length > 0) {
                                 const numCols = grid[0].length;
                                 const cellSize = Math.min(USABLE_WIDTH / numCols, 8);
@@ -424,14 +535,14 @@ const GeneratedContentDisplay: React.FC<GeneratedContentProps> = ({ content, stu
                                 const startX = (PAGE_WIDTH - (numCols * cellSize)) / 2; // Center grid
                                 let startY = y;
 
-                                // --- Teacher's PDF Solution Highlighting ---
-                                if (isForTeacher && solution) {
+                                // --- Teacher's PDF Solution Highlighting (using verifiedSolution) ---
+                                if (isForTeacher && verifiedSolution.length > 0) {
                                     const highlightColors = [
                                         [255, 228, 196], [173, 216, 230], [144, 238, 144], 
                                         [255, 182, 193], [221, 160, 221], [240, 230, 140], 
                                         [176, 224, 230] 
                                     ];
-                                    solution.forEach((sol, index) => {
+                                    verifiedSolution.forEach((sol, index) => {
                                         const color = highlightColors[index % highlightColors.length];
                                         doc.setFillColor(color[0], color[1], color[2]);
 
@@ -471,7 +582,6 @@ const GeneratedContentDisplay: React.FC<GeneratedContentProps> = ({ content, stu
                                 // --- Words to Find ---
                                 addText("Palabras a encontrar:", {font: 'bold'});
                                 addText(words.join(', '));
-
                             }
                         }
                         // ... rest of PDF generation for other activities

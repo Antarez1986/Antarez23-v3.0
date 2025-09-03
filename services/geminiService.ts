@@ -169,7 +169,18 @@ Instrucciones para las actividades opcionales solicitadas. Para cada actividad, 
         }
         if (data.extraActivities.includes('Sopa de Letras')) {
             instructions += `
-- **Sopa de Letras**: Rellena el campo 'sopaDeLetras'. La 'grid' debe ser de ${data.sopaDeLetrasRows}x${data.sopaDeLetrasCols}. 'words' debe tener ${data.sopaDeLetrasWordCount} palabras clave. Es CRUCIAL que las palabras estén muy bien escondidas. Utiliza todas las direcciones: horizontal (de izquierda a derecha y viceversa), vertical (de arriba a abajo y viceversa) y diagonal (en las 4 direcciones). La distribución de las palabras en la cuadrícula debe ser completamente aleatoria y suponer un verdadero reto. NO coloques las palabras de forma ordenada, consecutiva o en patrones obvios (por ejemplo, todas comenzando en la primera fila o columna). Las letras de relleno deben ser aleatorias para maximizar la dificultad. En el campo 'solution', proporciona un array con objetos para CADA palabra, especificando la palabra y sus coordenadas de inicio y fin (startRow, startCol, endRow, endCol), todas basadas en 0. **VALIDACIÓN CRÍTICA: Antes de generar la respuesta, verifica que cada palabra en 'solution' se puede reconstruir perfectamente a partir de la 'grid' utilizando las coordenadas (startRow, startCol, endRow, endCol) proporcionadas para esa palabra. La palabra puede estar al derecho o al revés. Si las coordenadas no son correctas, corrígelas. La precisión es obligatoria.** ASEGÚRATE de que los otros campos de contenido estructurado estén ausentes o nulos en este objeto.`;
+- **Sopa de Letras**: Rellena el campo 'sopaDeLetras'. La 'grid' debe ser de ${data.sopaDeLetrasRows}x${data.sopaDeLetrasCols}. 'words' debe tener ${data.sopaDeLetrasWordCount} palabras clave. El objetivo es crear una sopa de letras de alta calidad, visualmente densa y desafiante.
+  **Reglas de Colocación de Palabras (OBLIGATORIO):**
+  1.  **Todas las Direcciones:** Utiliza TODAS las 8 direcciones posibles: horizontal (derecha e izquierda), vertical (arriba y abajo) y diagonal (las 4 direcciones).
+  2.  **Palabras que se Cruzan:** Prioriza el cruce de palabras. Intenta que al menos un 30% de las palabras compartan una letra con otra palabra. Esto crea una cuadrícula más compacta y profesional.
+  3.  **Distribución Aleatoria:** La posición inicial de cada palabra debe ser completamente aleatoria para evitar patrones predecibles (ej. no agrupar palabras en una esquina).
+  4.  **Palabras Largas:** Si una palabra es más larga que las filas o columnas, DEBE ser colocada en diagonal.
+  **Reglas de Relleno (OBLIGATORIO):**
+  1.  **Relleno Inteligente:** Las letras de relleno no deben ser puramente aleatorias. Analiza las letras de las palabras ya colocadas y usa esas letras con más frecuencia en el relleno. Esto crea "pistas falsas" y aumenta la dificultad de forma significativa.
+  **Reglas de la Solución (OBLIGATORIO):**
+  1.  En el campo 'solution', proporciona un array con objetos para CADA palabra, especificando la palabra y sus coordenadas de inicio y fin (startRow, startCol, endRow, endCol), basadas en 0.
+  2.  **VALIDACIÓN CRÍTICA:** Antes de generar la respuesta, verifica que cada palabra en 'solution' se puede reconstruir perfectamente a partir de la 'grid' utilizando sus coordenadas. La palabra puede estar al derecho o al revés. Si las coordenadas no son correctas, corrígelas. La precisión es obligatoria.
+  Asegúrate de que los otros campos de contenido estructurado estén ausentes o nulos en este objeto.`;
         }
         if (data.extraActivities.includes('Completar la Frase')) {
             instructions += `
