@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { FormData, GeneratedContent } from '../types';
 
@@ -133,7 +134,7 @@ const responseSchema = {
                                 },
                                 description: "Contenido estructurado para Ordena la Frase. USA ESTE CAMPO SÓLO PARA ESA ACTIVIDAD."
                             },
-                             categorizeWords: {
+                            categorizeWords: {
                                 type: Type.OBJECT,
                                 properties: {
                                     categories: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Un array de 2 a 4 strings que son las categorías." },
@@ -356,7 +357,7 @@ export const generateStoryAndWorkshop = async (formData: FormData): Promise<Gene
             throw new Error("La estructura de la narrativa en la respuesta del modelo es inválida.");
         }
 
-        // 2. Preparar todos los prompts para la generación de imágenes en paralelo
+        // 2. Preparar todos los prompts para la generación de imágenes
         const coverPrompt = `Portada del cuento titulado "${narrative.title}" con el personaje principal, ${formData.studentName}, relacionado al tema de ${formData.topic}.`;
         let allImagePrompts = [coverPrompt, ...narrative.imagePrompts];
         
@@ -374,9 +375,13 @@ export const generateStoryAndWorkshop = async (formData: FormData): Promise<Gene
         
         allImagePrompts.push(...activityImagePrompts.map(p => p.prompt));
         
-        // 3. Generar todas las imágenes en paralelo
-        const imageGenerationPromises = allImagePrompts.map(p => generateSingleColoringImage(p, formData.grade));
-        const imagesBase64 = await Promise.all(imageGenerationPromises);
+        // 3. Generar todas las imágenes secuencialmente para evitar errores de cuota (rate limiting).
+        const imagesBase64: string[] = [];
+        for (const prompt of allImagePrompts) {
+            // Se procesan una por una en lugar de en paralelo para no exceder la cuota de la API.
+            const image = await generateSingleColoringImage(prompt, formData.grade);
+            imagesBase64.push(image);
+        }
 
         const [coverImage, ...vignetteImages] = imagesBase64.slice(0, 4);
         const activityImages = imagesBase64.slice(4);

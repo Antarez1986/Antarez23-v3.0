@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { FormData } from '../types';
 import { Difficulty } from '../types';
 import { SCHOOL_GRADES, TEXT_TYPES, PREFERENCES, DIFFICULTIES, EXTRA_ACTIVITIES } from '../constants';
@@ -10,6 +10,13 @@ interface StudentFormProps {
 }
 
 const LOCAL_STORAGE_KEY = 'creativeWorkshopFormData';
+
+// Define combinations of activities that might be redundant
+const CONFLICTING_ACTIVITIES: [string, string, string][] = [
+  ['Preguntas Abiertas', 'Actividad Creativa', 'Ambas fomentan la expresión libre. Para obtener resultados más variados, considera elegir solo una.'],
+  ['Unir Columnas', 'Clasificar Palabras', 'Ambas evalúan habilidades de categorización. Seleccionar una puede ser suficiente para este objetivo.'],
+  ['Mapa Conceptual o Línea de Tiempo', 'Ordenar Pasos de un Proceso', 'Ambas se centran en la secuenciación y las relaciones conceptuales. Considera qué formato visual es más adecuado para tu tema.']
+];
 
 // Helper component for styled section headers
 const SectionHeader: React.FC<{ icon: string; title: string; subtitle: string }> = ({ icon, title, subtitle }) => (
@@ -94,6 +101,15 @@ const StudentForm: React.FC<StudentFormProps> = ({ onGenerate, isLoading }) => {
       console.error("Error al guardar los datos del formulario en localStorage", error);
     }
   }, [formData]);
+
+  const suggestionMessage = useMemo(() => {
+    for (const [act1, act2, message] of CONFLICTING_ACTIVITIES) {
+      if (formData.extraActivities.includes(act1) && formData.extraActivities.includes(act2)) {
+        return `Sugerencia: '${act1}' y '${act2}' son actividades similares. ${message}`;
+      }
+    }
+    return null;
+  }, [formData.extraActivities]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -280,6 +296,23 @@ const StudentForm: React.FC<StudentFormProps> = ({ onGenerate, isLoading }) => {
             </div>
             
              <label className={labelClasses}>Actividades opcionales</label>
+             
+             {suggestionMessage && (
+                <div className="my-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg text-sm text-amber-800" role="alert">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0 pt-0.5">
+                            <svg className="fill-current h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 011-1h2a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1H9a1 1 0 01-1-1zm1-10a1 1 0 011 1v4a1 1 0 11-2 0V4a1 1 0 011-1z"/>
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="font-bold">Sugerencia de combinación</p>
+                            <p>{suggestionMessage}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="p-4 bg-teal-50/50 border-2 border-teal-100 rounded-xl">
                  <ActivityCategory title="Juegos de Palabras">
                     {renderActivityCheckbox("Sopa de Letras")}
