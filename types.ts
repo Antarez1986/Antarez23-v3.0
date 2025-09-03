@@ -73,6 +73,27 @@ export type OrdenaFraseItem = {
   correctSentence: string;
 };
 
+export type CategorizeWordsExercise = {
+  categories: string[];
+  items: {
+    word: string;
+    category: string;
+  }[];
+};
+
+export type SequenceStepsExercise = {
+  title: string;
+  steps: string[]; // Correct order
+};
+
+export type IdentifyImageExercise = {
+  imagePrompt: string;
+  generatedImage?: string; // To be populated after generation
+  question: string;
+  options: string[];
+  correctAnswer: string;
+};
+
 export interface ExtraActivity {
   title: string;
   description: string;
@@ -81,6 +102,9 @@ export interface ExtraActivity {
   verdaderoFalso?: VerdaderoFalsoItem[];
   completarFrase?: CompletarFraseItem[];
   ordenaFrase?: OrdenaFraseItem[];
+  categorizeWords?: CategorizeWordsExercise;
+  sequenceSteps?: SequenceStepsExercise;
+  identifyImage?: IdentifyImageExercise;
 }
 
 

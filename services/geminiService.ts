@@ -133,6 +133,42 @@ const responseSchema = {
                                 },
                                 description: "Contenido estructurado para Ordena la Frase. USA ESTE CAMPO SÓLO PARA ESA ACTIVIDAD."
                             },
+                             categorizeWords: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    categories: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Un array de 2 a 4 strings que son las categorías." },
+                                    items: {
+                                        type: Type.ARRAY,
+                                        items: {
+                                            type: Type.OBJECT,
+                                            properties: {
+                                                word: { type: Type.STRING, description: "La palabra o concepto a clasificar." },
+                                                category: { type: Type.STRING, description: "La categoría a la que pertenece la palabra." },
+                                            }
+                                        },
+                                        description: "Un array de 8 a 12 objetos, cada uno con una palabra y su categoría correcta."
+                                    }
+                                },
+                                description: "Contenido estructurado para Clasificar Palabras. USA ESTE CAMPO SÓLO PARA ESA ACTIVIDAD."
+                            },
+                            sequenceSteps: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING, description: "El título del proceso a ordenar. Ej: 'Ciclo del Agua'."},
+                                    steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Un array de 4 a 6 strings que describen los pasos en el orden cronológico CORRECTO." },
+                                },
+                                description: "Contenido estructurado para Ordenar Pasos de un Proceso. USA ESTE CAMPO SÓLO PARA ESA ACTIVIDAD."
+                            },
+                            identifyImage: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    imagePrompt: { type: Type.STRING, description: "Un prompt detallado para generar una imagen para colorear relevante a la pregunta. Debe ser descriptivo y claro." },
+                                    question: { type: Type.STRING, description: "La pregunta de opción múltiple sobre la imagen." },
+                                    options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Exactamente 3 opciones de respuesta." },
+                                    correctAnswer: { type: Type.STRING, description: "La respuesta correcta de las opciones." },
+                                },
+                                description: "Contenido para Identificar la Imagen. NO generes la imagen, solo el prompt. USA ESTE CAMPO SÓLO PARA ESA ACTIVIDAD."
+                            },
                         }
                     }
                 }
@@ -148,7 +184,7 @@ const buildPrompt = (data: FormData): string => {
 
         if (data.extraActivities.length > 0) {
             instructions += `
-Instrucciones para las actividades opcionales solicitadas. Para cada actividad, genera un objeto en el array 'workshop.extraActivities'. Cada objeto DEBE tener 'title', 'description' y SÓLO UNO de los siguientes campos de contenido: 'content' (para markdown simple), 'sopaDeLetras', 'verdaderoFalso', 'completarFrase', u 'ordenaFrase'.`;
+Instrucciones para las actividades opcionales solicitadas. Para cada actividad, genera un objeto en el array 'workshop.extraActivities'. Cada objeto DEBE tener 'title', 'description' y SÓLO UNO de los siguientes campos de contenido: 'content' (para markdown simple), 'sopaDeLetras', 'verdaderoFalso', 'completarFrase', 'ordenaFrase', 'categorizeWords', 'sequenceSteps', o 'identifyImage'.`;
         }
 
         if (data.extraActivities.includes('Unir Columnas')) {
@@ -193,6 +229,18 @@ Instrucciones para las actividades opcionales solicitadas. Para cada actividad, 
         if (data.extraActivities.includes('Ordena la Frase')) {
             instructions += `
 - **Ordena la Frase**: Rellena el campo 'ordenaFrase'. Genera 3 objetos, cada uno con 'scrambledWords' y 'correctSentence'. ASEGÚRATE de que los otros campos de contenido estructurado estén ausentes o nulos en este objeto.`;
+        }
+        if (data.extraActivities.includes('Clasificar Palabras')) {
+            instructions += `
+- **Clasificar Palabras**: Rellena el campo 'categorizeWords'. Genera 2-4 'categories' y 8-12 'items' (con 'word' y 'category'). Las palabras y categorías deben estar directamente relacionadas con la historia.`;
+        }
+        if (data.extraActivities.includes('Ordenar Pasos de un Proceso')) {
+            instructions += `
+- **Ordenar Pasos de un Proceso**: Rellena el campo 'sequenceSteps'. Describe un proceso clave de la historia en 4-6 'steps', listados en el orden cronológico correcto.`;
+        }
+        if (data.extraActivities.includes('Identificar la Imagen')) {
+            instructions += `
+- **Identificar la Imagen**: Rellena el campo 'identifyImage'. Crea un 'imagePrompt' para una imagen para colorear relacionada con la historia. Luego, crea una 'question' sobre esa imagen, con 3 'options' y la 'correctAnswer'.`;
         }
         // Fallback for any other activity
         instructions += `
@@ -310,19 +358,38 @@ export const generateStoryAndWorkshop = async (formData: FormData): Promise<Gene
 
         // 2. Preparar todos los prompts para la generación de imágenes en paralelo
         const coverPrompt = `Portada del cuento titulado "${narrative.title}" con el personaje principal, ${formData.studentName}, relacionado al tema de ${formData.topic}.`;
-        const allImagePrompts = [coverPrompt, ...narrative.imagePrompts];
-
-        if (allImagePrompts.length !== 4) {
-             console.warn(`Se esperaban 4 prompts de imagen (1 portada + 3 viñetas) pero se recibieron ${allImagePrompts.length}. Se continuará con los prompts disponibles.`);
+        let allImagePrompts = [coverPrompt, ...narrative.imagePrompts];
+        
+        const activityImagePrompts: { prompt: string; activityIndex: number }[] = [];
+        if (workshop.extraActivities) {
+            workshop.extraActivities.forEach((activity: any, index: number) => {
+                if (activity.identifyImage && activity.identifyImage.imagePrompt) {
+                    activityImagePrompts.push({
+                        prompt: activity.identifyImage.imagePrompt,
+                        activityIndex: index,
+                    });
+                }
+            });
         }
-
-        // 3. Generar todas las imágenes en paralelo, adaptando el estilo al grado
+        
+        allImagePrompts.push(...activityImagePrompts.map(p => p.prompt));
+        
+        // 3. Generar todas las imágenes en paralelo
         const imageGenerationPromises = allImagePrompts.map(p => generateSingleColoringImage(p, formData.grade));
         const imagesBase64 = await Promise.all(imageGenerationPromises);
 
-        const [coverImage, ...vignetteImages] = imagesBase64;
+        const [coverImage, ...vignetteImages] = imagesBase64.slice(0, 4);
+        const activityImages = imagesBase64.slice(4);
 
-        // 4. Ensamblar el resultado final
+        // 4. Inyectar las imágenes generadas de las actividades de vuelta en el objeto del taller
+        activityImagePrompts.forEach((promptInfo, i) => {
+            if (workshop.extraActivities[promptInfo.activityIndex]?.identifyImage) {
+                workshop.extraActivities[promptInfo.activityIndex].identifyImage.generatedImage = activityImages[i];
+            }
+        });
+
+
+        // 5. Ensamblar el resultado final
         const finalContent: GeneratedContent = {
             narrative: {
                 ...narrative,

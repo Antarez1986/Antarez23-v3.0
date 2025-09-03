@@ -23,4 +23,7 @@ export const EXTRA_ACTIVITIES: string[] = [
     "Completar la Frase",
     "Verdadero o Falso",
     "Ordena la Frase",
+    "Clasificar Palabras",
+    "Ordenar Pasos de un Proceso",
+    "Identificar la Imagen",
 ];

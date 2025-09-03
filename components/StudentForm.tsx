@@ -46,6 +46,15 @@ const CheckboxTag: React.FC<{ value: string; checked: boolean; onChange: (e: Rea
   );
 };
 
+const ActivityCategory: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
+    <div className="mt-4">
+        <h4 className="font-semibold text-teal-800 mb-3 text-md">{title}</h4>
+        <div className="flex flex-wrap gap-3">
+            {children}
+        </div>
+    </div>
+);
+
 
 const StudentForm: React.FC<StudentFormProps> = ({ onGenerate, isLoading }) => {
   const [formData, setFormData] = useState<FormData>(() => {
@@ -162,6 +171,16 @@ const StudentForm: React.FC<StudentFormProps> = ({ onGenerate, isLoading }) => {
 
   const inputClasses = (hasError: boolean) => `w-full px-4 py-3 bg-white/50 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm placeholder:text-slate-400 ${hasError ? 'border-red-500' : 'border-slate-300'}`;
   const labelClasses = "block text-sm font-semibold text-slate-600 mb-2";
+  
+  const renderActivityCheckbox = (activity: string) => (
+    <CheckboxTag 
+        key={activity} 
+        value={activity} 
+        checked={formData.extraActivities.includes(activity)} 
+        onChange={(e) => handleCheckboxChange(e, 'extraActivities')} 
+        field="extraActivities" 
+    />
+  );
 
   return (
     <div className="max-w-4xl mx-auto bg-white/70 backdrop-blur-lg p-6 sm:p-8 rounded-3xl shadow-2xl border border-white/30">
@@ -259,11 +278,28 @@ const StudentForm: React.FC<StudentFormProps> = ({ onGenerate, isLoading }) => {
                 <input type="range" name="saberQuestionCount" id="saberQuestionCount" min="3" max="10" value={formData.saberQuestionCount} onChange={handleInputChange} className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:bg-blue-500" />
                 {errors.saberQuestionCount && <p className="mt-1 text-sm text-red-600">{errors.saberQuestionCount}</p>}
             </div>
+            
              <label className={labelClasses}>Actividades opcionales</label>
-            <div className="flex flex-wrap gap-3">
-                {EXTRA_ACTIVITIES.map(activity => (
-                    <CheckboxTag key={activity} value={activity} checked={formData.extraActivities.includes(activity)} onChange={(e) => handleCheckboxChange(e, 'extraActivities')} field="extraActivities" />
-                ))}
+            <div className="p-4 bg-teal-50/50 border-2 border-teal-100 rounded-xl">
+                 <ActivityCategory title="Juegos de Palabras">
+                    {renderActivityCheckbox("Sopa de Letras")}
+                    {renderActivityCheckbox("Completar la Frase")}
+                    {renderActivityCheckbox("Ordena la Frase")}
+                    {renderActivityCheckbox("Clasificar Palabras")}
+                </ActivityCategory>
+                
+                <ActivityCategory title="Lógica y Secuencia">
+                    {renderActivityCheckbox("Unir Columnas")}
+                    {renderActivityCheckbox("Verdadero o Falso")}
+                    {renderActivityCheckbox("Ordenar Pasos de un Proceso")}
+                    {renderActivityCheckbox("Mapa Conceptual o Línea de Tiempo")}
+                </ActivityCategory>
+
+                <ActivityCategory title="Expresión y Creatividad">
+                    {renderActivityCheckbox("Identificar la Imagen")}
+                    {renderActivityCheckbox("Preguntas Abiertas")}
+                    {renderActivityCheckbox("Actividad Creativa")}
+                </ActivityCategory>
             </div>
             
             {/* Conditional inputs */}
